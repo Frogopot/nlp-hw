@@ -3,6 +3,8 @@ import time
 from guesser import Guesser
 from collections import defaultdict
 
+from datetime import datetime, timedelta
+
 kPRESIDENT_DATA = {"train": [
   {"start": 1789, "stop": 1797, "name": "George Washington"},
   {"start": 1797, "stop": 1801, "name": "John Adams"},
@@ -65,16 +67,39 @@ kPRESIDENT_DATA = {"train": [
 class PresidentGuesser(Guesser):
     def train(self, training_data):
         self._lookup = defaultdict(dict)
+        for data in training_data:
+            current_date = datetime(data["start"],1,20,12,0)
+            end_date = datetime(data["stop"],1,19,12,0)
+            while current_date <= end_date:
+                date = current_date.strftime("%A %b %d %H:%M:%S %Y")
+                self._lookup[date] = data["name"]
+                current_date += timedelta(days=1)
             
     def __call__(self, question, n_guesses=1):
         # Update this code so that we can have a different president than Joe
         # Biden
-        candidates = ["Joseph R. Biden"]
-
-        if len(candidates) == 0:
-            return [{"guess": ""}]
+        if isinstance(question, dict):
+            date = question["text"].split(" ")[5:10]
         else:
-            return [{"guess": x} for x in candidates]
+            date = question.split(" ")[5:10]
+
+        month = date[0] 
+        day = int(date[1]) 
+        time_str = date[2]
+        year = int(date[3].replace("?", ""))
+
+        parsed_date = datetime(year, time.strptime(month, "%b").tm_mon, day, int(time_str[:2]), int(time_str[3:5]))
+
+        if parsed_date.hour >= 12:
+            new_date = parsed_date.replace(hour=12, minute=0, second=0)
+        
+        else:
+            new_date = (parsed_date - timedelta(days=1)).replace(hour=12, minute=0, second=0)
+
+        candidates = [self._lookup.get(new_date.strftime("%A %b %d %H:%M:%S %Y")), ""]
+
+        return [{"guess": x} for x in candidates]
+            
         
 if __name__ == "__main__":
     pg = PresidentGuesser()
